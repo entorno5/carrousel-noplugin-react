@@ -2,12 +2,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { map, addIndex } from "ramda";
 import MaxIcon from "../assets/max.svg";
+import CloseImage from "../assets/close.svg";
 
 function Slider(props) {
   const { images } = props;
   const { id } = props;
   const [isCarousel, setIsCarousel] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const [selectedButton, setSelectedButton] = useState(1);
   const [isDraggingCaption, setIsDraggingCaption] = useState(false);
   const isDraggingCaptionRef = useRef(isDraggingCaption);
@@ -171,8 +174,50 @@ function Slider(props) {
     }
   };
 
+  const handleImageClick = (e, image, index) => {
+    if (!isDragging) {
+      e.stopPropagation();
+      setSelectedImage(image.src);
+      goToImage(index);
+      setIsModalOpen(true);
+      document.body.style.overflow = "hidden";
+    }
+  };
+
+  const goToImage = (index) => {
+    setSelectedButton(index);
+    const ele = document.getElementById(`ic_${id}_${index}`);
+    if (ele) {
+      const containerWidth = document.getElementsByClassName(
+        "wrapper-content-slider"
+      )[0].offsetWidth;
+      const imageWidth = ele.offsetWidth;
+      let scrollLeft = ele.offsetLeft - (containerWidth - imageWidth) / 2;
+
+      ele.parentNode.scrollTo({
+        left: scrollLeft,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const manageMouseDownCaption = (e) => {
+    e.stopPropagation();
+    setIsDraggingCaption(true);
+  };
+
+  const manageMouseUpCaption = (e) => {
+    e.stopPropagation();
+    setIsDraggingCaption(false);
+  };
+
   return images.length > 0 ? (
     <>
+      <div
+        className="slider_veil"
+        style={{ display: isModalOpen ? "block" : "none" }}
+      ></div>
+
       <div className="wrapper-content-slider">
         <div
           className={`image_container ${isCarousel ? "" : "center"}`}
@@ -186,7 +231,7 @@ function Slider(props) {
                 className="image_content"
                 id={`ic_${id}_${index + 1}`}
               >
-                <div>
+                <div onClick={(e) => handleImageClick(e, i, index + 1)}>
                   <img
                     className="image"
                     alt={i.alt}
@@ -199,11 +244,69 @@ function Slider(props) {
                     <img src={MaxIcon} alt="max" draggable="false" />
                   </div>
                 </div>
+
+                <div
+                  className="image_caption"
+                  style={{ userSelect: "text" }}
+                  onMouseDown={(e) => manageMouseDownCaption(e)}
+                  onMouseUp={(e) => manageMouseUpCaption(e)}
+                  onTouchStart={(e) => manageMouseDownCaption(e)}
+                  onTouchEnd={(e) => manageMouseUpCaption(e)}
+                >
+                  <p>{i.alt}</p>
+                </div>
               </div>
             );
           }, images)}
         </div>
+        {isCarousel && images.length > 1 && (
+          <div className="image_buttons">
+            {[...Array(images.length)].map((_, index) => (
+              <div
+                key={index}
+                className={`image_button ${
+                  index + 1 === selectedButton ? "selected" : ""
+                }`}
+                onClick={() => goToImage(index + 1)}
+              ></div>
+            ))}
+          </div>
+        )}
       </div>
+      {isModalOpen && (
+        <div className="modal is_image">
+          <div className="modal-content">
+            <span
+              className="close"
+              onClick={() => {
+                setIsModalOpen(false);
+                document.body.style.overflow = "auto";
+              }}
+            >
+              <img src={CloseImage} alt="close" draggable="false" />
+            </span>
+            {images.length > 1 && (
+              <div className="modal_buttons">
+                {mapWithIndex((i, index) => {
+                  return (
+                    <div
+                      key={index}
+                      className={`modal_button ${
+                        index + 1 === selectedButton ? "selected" : ""
+                      }`}
+                      onClick={() => {
+                        goToImage(index + 1);
+                        setSelectedImage(i.src);
+                      }}
+                    ></div>
+                  );
+                }, images)}
+              </div>
+            )}
+            <img src={selectedImage} alt="description" />
+          </div>
+        </div>
+      )}
     </>
   ) : (
     ""
